@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - domain.lxz.io
+  resources:
+  - records
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - domain.lxz.io
+  resources:
+  - records/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - domain.lxz.io
+  resources:
+  - records/status
+  verbs:
+  - get
+  - patch
+  - update

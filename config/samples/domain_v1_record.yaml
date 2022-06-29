@@ -3,4 +3,9 @@ kind: Record
 metadata:
   name: record-sample
 spec:
-  # TODO(user): Add fields here
+  provider: Namecheap
+  domain: example.com
+  hostname: demo
+  address: 192.168.1.1
+  type: A
+

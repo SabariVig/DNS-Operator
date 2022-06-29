@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -25,14 +26,18 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	domainv1 "github.com/SabariVig/DNS-Operator/api/v1"
 	"github.com/SabariVig/DNS-Operator/controllers"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -57,13 +62,10 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	zl := zerolog.New(os.Stderr).With().Logger()
+	ctrl.SetLogger(zerologr.New(&zl))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -89,9 +91,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Fetch Secrets to authenticate clients
+	var secret corev1.Secret
+	if err = mgr.GetAPIReader().Get(context.Background(), types.NamespacedName{
+		Name:      "dns-secret",
+		Namespace: metav1.NamespaceDefault},
+		&secret,
+	); err != nil {
+		setupLog.Error(err, "unable to get secret")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.RecordReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Secret: secret,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Record")
 		os.Exit(1)
