@@ -17,11 +17,19 @@ func convertToResponse(fetchedRecords *nc.DomainsDNSGetHostsCommandResponse) []n
 	return records
 }
 
-func appendRecord(fetchedRecords *[]nc.DomainsDNSHostRecord, record *v1.Record) []nc.DomainsDNSHostRecord {
-	return append(*fetchedRecords, nc.DomainsDNSHostRecord{
+func appendRecord(fetchedRecords *[]nc.DomainsDNSHostRecord, record *v1.Record) {
+	*fetchedRecords = append(*fetchedRecords, nc.DomainsDNSHostRecord{
 		Address:    &record.Spec.Address,
 		HostName:   &record.Spec.Hostname,
 		RecordType: (*string)(&record.Spec.Type),
 	})
+}
 
+func removeRecord(ncRecords []nc.DomainsDNSHostRecord, record *v1.Record) []nc.DomainsDNSHostRecord {
+	for i, ncRecord := range ncRecords {
+		if record.Spec.Hostname == *ncRecord.HostName && record.Spec.Address == *ncRecord.Address {
+			return append(ncRecords[:i], ncRecords[i+1:]...)
+		}
+	}
+	return ncRecords
 }

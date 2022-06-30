@@ -40,12 +40,13 @@ func (client *NCProvider) AddRecord(ctx context.Context, record *v1.Record) erro
 		log.Error(err, "Unable to get Hosts from Namecheap")
 		return err
 	}
-	fechRecords := convertToResponse(fetchedRecords)
-	log.Info("Exsisting Record", fechRecords)
 
-	records := appendRecord(&fechRecords, record)
+	records := convertToResponse(fetchedRecords)
+	log.Info("Add Record", "records", records)
 
-	log.Info("Setting Domain records", records)
+	appendRecord(&records, record)
+
+	log.Info("AddRecord: Setting Domain records", records)
 	_, err = client.DomainsDNS.SetHosts(
 		&nc.DomainsDNSSetHostsArgs{
 			Domain:  &record.Spec.Domain,
@@ -56,9 +57,41 @@ func (client *NCProvider) AddRecord(ctx context.Context, record *v1.Record) erro
 		log.Error(err, "Error: Unable to Set Hosts from Namecheap")
 		return err
 	}
+	log.Info("Add Record: Successfully set Domain for", "host_name", record.Spec.Hostname, "domain_name", record.Spec.Domain)
 	return nil
 }
 
 func (client *NCProvider) DeleteRecord(ctx context.Context, record *v1.Record) error {
+	log := log.FromContext(ctx)
+	log.Info("DeleteRecord: started process")
+
+	fetchedRecords, err := client.DomainsDNS.GetHosts(record.Spec.Domain)
+	if err != nil {
+		log.Error(err, "Unable to get Hosts from Namecheap")
+		return err
+	}
+
+	records := convertToResponse(fetchedRecords)
+	log.Info("DeleteRecord", "Exsisting Record", records)
+	filteredRecord := removeRecord(records, record)
+
+	if len(records) == len(filteredRecord) {
+		log.Info("No record to delete")
+		return nil
+	}
+
+	_, err = client.DomainsDNS.SetHosts(
+		&nc.DomainsDNSSetHostsArgs{
+			Domain:  &record.Spec.Domain,
+			Records: &filteredRecord,
+		},
+	)
+
+	if err != nil {
+		log.Error(err, "DeleteRecord: Unable to delete from Namecheap")
+		return err
+	}
+
+	log.Info("Successfully Deleted Record from Namecheap for", record.Spec.Domain, record.Spec.Domain)
 	return nil
 }

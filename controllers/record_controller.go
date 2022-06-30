@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	domainv1 "github.com/SabariVig/DNS-Operator/api/v1"
@@ -45,7 +46,49 @@ func (r *RecordReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	case v1.Namecheap:
 		provider = namecheap.NewNamecheapProvider(r.Secret)
 	}
-	provider.AddRecord(ctx, &record)
+
+	finalizerName := "records.domain.lxz.io/finalizers"
+
+	if record.ObjectMeta.DeletionTimestamp.IsZero() {
+		log.Info("Finalizers", "Deletion Issued")
+		if !controllerutil.ContainsFinalizer(&record, finalizerName) {
+			log.Info("Finalizers: Adding finalizer to", "hostname", &record.Spec.Hostname)
+
+			controllerutil.AddFinalizer(&record, finalizerName)
+			err := r.Update(ctx, &record)
+			if err != nil {
+				log.Error(err, "Unable to add Finalizers")
+				return ctrl.Result{}, err
+			}
+			log.Info("Finalizers: Added finalizer to", "hostname", &record.Spec.Hostname)
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(&record, finalizerName) {
+
+			log.Info("Finalizers", "Deletion Started")
+			err := provider.DeleteRecord(ctx, &record)
+			if err != nil {
+				log.Error(err, "Unable to Delete Record")
+				return ctrl.Result{}, err
+			}
+
+			log.Info("Finalizers: Removing Finalizers from", "record", record)
+			controllerutil.RemoveFinalizer(&record, finalizerName)
+			err = r.Update(ctx, &record)
+			if err != nil {
+				log.Error(err, "Unable to remove Finalizers")
+				return ctrl.Result{}, err
+			}
+			log.Info("Finalizers: removed Finalizers from", "record", record)
+		}
+		return ctrl.Result{}, err
+	}
+
+	err = provider.AddRecord(ctx, &record)
+	if err != nil {
+		log.Error(err, "Unable to add Record")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
