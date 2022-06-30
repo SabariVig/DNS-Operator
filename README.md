@@ -1,8 +1,38 @@
-# dns-operator
-// TODO(user): Add simple overview of use/purpose
+# DNS Operator
+
+Kubernetes Operator for DNS Records
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+DNS Operator is used to automate the process of setting up DNS records in a Kubernetes API way.
+
+The Supported Providers are 
+- [Namecheap](https://namecheap.com)
+
+### Prerequisites
+
+#### Namecheap Provider
+  - Namecheap Account 
+  - White listing IP
+  - Obtaining API Keys 
+[Namecheap Docs](https://www.namecheap.com/support/api/intro/)
+
+
+#### Setting up Secret
+Create the following secret which is required for namecheap provider
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dns-secret
+data:
+  apiKey: <api_key>
+  apiUser: <username>
+  username: <username>
+  clientIP: <client_ip>
+  useSandbox: <true|false>
+
+```
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
@@ -40,9 +70,6 @@ UnDeploy the controller to the cluster:
 ```sh
 make undeploy
 ```
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
 ### How it works
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
